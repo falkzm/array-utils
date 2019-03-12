@@ -5,7 +5,7 @@ Hier ist übrigens mal die ganze Library: Falls du mal sehen willst, wo ich imme
 -> siehe dazu array*.h
 Eine Anwendung ist zB. linearAlgebra.h .
 
-Musst dir aber nicht genauer ansehen. 
+Musst du dir aber nicht genauer ansehen. 
 
 Ganz besonders stolz bin ich aber auf arrayTools.h: ArrayTools::map(Invocable, Param....). Damit lässt sich wunderbar n-Dimensionales programmieren. 
 
@@ -16,7 +16,7 @@ loopt beispielsweise über den Tensor "Tensor", wobei die Elemente bis Typ T auf
   int n=0; 
   map ( Tensor, [&n](Vec<T>& v) { v=Vec<T>{1,2}*n++; } )
 
-macht dann Equivalentes, aber für vektorartige Elemente Vec<T>. Es wird also eine dimension weniger aufgelöst.
+macht dann Equivalentes, aber für vektorartige Elemente Vec<T>. Es wird also eine Dimension weniger aufgelöst.
 
 Gpp
 ===
