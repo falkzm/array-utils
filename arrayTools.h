@@ -85,8 +85,6 @@ public:
     };
 
     IndexContainer<> indexContainer;
-    tuple<int> t;
-    std::index_sequence<0> x = std::make_index_sequence<tuple_size_v<tuple<int>>>{};
 
     template< int d=0, std::size_t... PI, class ArrayL > // PI:<=>ParameterIndices: needed to transform tupel parameter into a varic list via "std::get<PI>(param)...
        inline void map (ArrayL &&array, std::index_sequence< PI... >* = NULL )
@@ -178,7 +176,7 @@ public:
     Array < ComponentSType > result(max-min+1,NULL);
 
     for(Count i=0;i<result.n();++i)
-      result[i]=array[i+min];
+      result.atFast(i)=array[i+min];
 
     return result;
   }
@@ -282,9 +280,9 @@ public:
 
       if(leftId<rightId) //swap ids
       {
-	Count tmpId=indexArray[leftId];
-	indexArray[leftId]=indexArray[rightId];
-	indexArray[rightId]=tmpId;
+        Count tmpId=indexArray[leftId];
+        indexArray[leftId]=indexArray[rightId];
+        indexArray[rightId]=tmpId;
       }
     }
     while(leftId<rightId);
