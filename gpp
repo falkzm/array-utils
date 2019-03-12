@@ -1,0 +1,64 @@
+#!/bin/bash
+
+if [ $# -lt 1 ] || [ $# -gt 3 ]; then
+  echo -e "usage: $0 \"c++ output code\" [\"initial c++ code\"] [\"compiler flags\"]"
+  exit 42
+fi
+
+cppFruit=$1
+cppFruitInit=$2
+cppFlags=$3
+cppFile=$0".cpp"
+binFile=$0".out"
+
+
+
+echo -e "#include<iostream>\n#include<stdio.h>\n#include<cmath>\nusing namespace std;\n\n" > $cppFile
+
+cat >> $cppFile <<EOF
+#define DEBUG
+
+#include <time.h>
+#include <complex>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+//#incluse <string>
+#include <iomanip> //setw setfill for string formating
+//#include <stdio>
+#include <cmath>
+#include <numeric>
+#include <boost/type_traits.hpp>
+using namespace std;
+
+
+#include "Parameter.h"
+//#include "listTools.h"
+#include "array.h"
+#include "arrayTools.h"
+#include "linearAlgebra.h"
+#include "linearAlgebraFile.h"
+#include "dataAnalysis.h"
+#include "autoCorrelation.h"
+
+#define LA  LinearAlgebra 
+#define LAF LinearAlgebraFile
+#define AT  ArrayTools
+#define DA  DataAnalysis
+#define N pData->componentSCount
+
+#define readMatrix(file) LAF::readMatrixFromFile<double>(file)
+EOF
+
+
+echo -e "int main(int argc, char **argv)\n{"                                               >>$cppFile
+echo -e $cppFruitInit";"                                                                   >>$cppFile
+echo -e "cout<<"$cppFruit";"                                                               >>$cppFile
+echo -e "return 0;\n}"                                                                     >>$cppFile
+
+g++ -std=c++17 -fconcepts -Wattributes $cppFile -o $binFile $cppFlags && $binFile
+
+
+# rm $cppFile
+rm $binFile
+exit 0
