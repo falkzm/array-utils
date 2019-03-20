@@ -12,6 +12,51 @@ template<class Tt,class Ts> struct copy_referenceType //similar to forward, can 
 };
 
 
+template<class  ,class=void> struct has_atFast                                                             : std::false_type {  };
+template<class T>            struct has_atFast<T,std::void_t<decltype(std::declval<T>().atFast(Count{}))>> : std::true_type  {  };
+
+template<class T> inline static constexpr bool has_atFast_v = has_atFast<T>::value;
+
+
+//template<class  ,class... P, class=void> struct has_n                                                                          : std::false_type {  };
+//template<class T,class... P>             struct has_n<T,P...,std::void_t<decltype(std::declval<T>().n(std::declval<P>()...))>> : std::true_type  {  };
+
+//template<class T,class... P> inline static constexpr bool has_n_v = has_n<T,P...>::value;
+
+
+template<class SubSettable,class Index>                                                        inline auto&& at    (SubSettable&& s,Index&& i)
+{  return std::forward<SubSettable>(s)[std::forward<Index>(i)];  }
+template<class SubSettable,class Index>                                                        inline auto&& atFast(SubSettable&& s,Index&& i)
+{
+  if constexpr(has_atFast_v<SubSettable>)
+    return std::forward<SubSettable>(s).atFast(std::forward<Index>(i));
+  else
+    return std::forward<SubSettable>(s)[std::forward<Index>(i)];
+}
+
+
+using std::size;
+template<class Array,class Size> auto&& resize(Array &&a,Size &&size,bool keepComponents=false)
+{
+  if constexpr(inheritsArray_v<Array>)
+    return std::forward<Array>(a).resize(std::forward<Size>(size),keepComponents);
+  else
+    return std::forward<Array>(a).resize(std::forward<Size>(size));
+}
+
+template<class... P,class Array>            auto&& n(Array&& a)
+{
+  //if constexpr(has_n_v<Array>)
+    return std::forward<Array>(a).template n<P...>();
+  //else
+  //  return Count(1);
+}
+template<class... P,class Array,class Size> auto&& n(Array&& a,Size&& size, bool keepComponents=false)
+{
+  return std::forward<Array>(a).template n<P...>(std::forward<Size>(size),keepComponents);
+}
+
+
 class ArrayTools
 {
 protected:
@@ -26,15 +71,15 @@ protected:
 
     template<class SubComponentSType>void process(const Array< Array< SubComponentSType > >& array,Array< SubComponentSType >& result,const Count dimensionIdRemaining)
     {
-      result.resize(array.pData->componentSCount);
+      result.resize(size(array));
       if(dimensionIdRemaining==1)
       {
-        for(Count i=0;i<array.pData->componentSCount;++i)
-          result[i]=array[i][dimensionIdRemoveSIndex];
+        for(Count i=0;i<size(array);++i)
+          atFast(result,i)=array[i][dimensionIdRemoveSIndex];
       }
       else
-        for(Count i=0;i<array.pData->componentSCount;++i)
-          process(array[i],result[i],dimensionIdRemaining-1);
+        for(Count i=0;i<size(array);++i)
+          process(array[i],atFast(result,i),dimensionIdRemaining-1);
     }
 
 
@@ -92,18 +137,24 @@ public:
       auto indexLambda = [this]()-> decltype(auto) // is either Index{0} or (Index[]&){indexContainer.v[d]}  => we loop over a plain scalar or use the previously
                          {  if constexpr ( subsettableIndex ) return indexContainer.v[d]=0; else return std::decay_t<Index>{0};  };
 
-      for( decltype(auto) i=indexLambda() ;i<array.size(); ++i ) //declt(auto) : replace auto w initialization list & uses rules of decltype => reference detection.
-        if constexpr( ! std::is_same
-                      <
-                        std::remove_cv_t< std::remove_reference_t<decltype(array[0])> >,
-                        Scalar
-                      >::value )
-          map< d+1, PI... >(array[i]);
-        else
-          if constexpr( subsettableIndex )
-            invocable( array[i],indexContainer.v, get<PI> (parameter)... );
+      const auto n=size(array);
+      if(n>0)
+      {
+        array[0];// calls either Array<.>::derefer() <= ArrayL inherits Array or gets optimised away.
+        for( decltype(auto) i=indexLambda() ;i<n; ++i ) //declt(auto) : replace auto w initialization list & uses rules of decltype => reference detection.
+                                                                // REPLACE with iterators ?
+          if constexpr( ! std::is_same
+                        <
+                          std::remove_cv_t< std::remove_reference_t<decltype(array[0])> >,
+                          Scalar
+                        >::value )
+            map< d+1, PI... >(atFast(array,i));
           else
-            invocable( array[i],i               , get<PI> (parameter)... );
+            if constexpr( subsettableIndex )
+              invocable( atFast(array,i),indexContainer.v, get<PI> (parameter)... );
+            else
+              invocable( atFast(array,i),i               , get<PI> (parameter)... );
+      }
       //return std::forward<Array>(array);
     }
 
@@ -128,6 +179,8 @@ public:
   // map could be realised with a different-efficient signature: Array map(Array, Invocable&&, Parameters...): for_array(array,i) array[i]=invocable(array[i],i,parameter...);
   //   return value optimisation & parameter replacement theoretically enable copy elusion, st. array=map(array, . , . ); does not result in an array copy.
   //   this ansatz allows might in some cases allow for more copy elusion: pointer-alias-problems.
+  //
+  // We deal with the constness problem of the indexing operator by the use of atFast(.) and initial call of "array[0];" ( which might perform data copies ("derefer()") for lazy-copy container types or gets optimised away, otherwise.)
   {
     if constexpr(!inheritsArray<Array>::value)
     {
@@ -172,11 +225,11 @@ public:
 
   template<class ComponentSType> static Array < ComponentSType > interval(const Array < ComponentSType > array,Count min,Count max)
   {
-    if(min<0)  min=0;  if(max>=array.n())  max=array.n()-1;
+    if(min<0)  min=0;  if(max>=size(array))  max=size(array)-1;
     Array < ComponentSType > result(max-min+1,NULL);
 
-    for(Count i=0;i<result.n();++i)
-      result.atFast(i)=array[i+min];
+    for(Count i=0;i<size(result);++i)
+      atFast(result,i)=array[i+min];
 
     return result;
   }
@@ -203,7 +256,7 @@ public:
   template<class ComponentSType> static Count maximalComponentId(const Array< ComponentSType > array) //simple but fast.
   {
     Count result=0;
-    for(Count i=1;i<array.pData->componentSCount;++i)
+    for(Count i=1;i<size(array);++i)
       if(array[i]>array[result])
     result=i;
 
@@ -213,7 +266,7 @@ public:
   template<class ComponentSType> static Count minimalComponentId(const Array< ComponentSType > array)
   {
     Count result=0;
-    for(Count i=1;i<array.pData->componentSCount;++i)
+    for(Count i=1;i<size(array);++i)
       if(array[i]<array[result])
     result=i;
 
@@ -237,7 +290,7 @@ public:
       {	return Count(double(value-minimum)/double(maximum-minimum)*(double)(classN)); }
     } classId;
 
-    for(Count i=0;i<array.pData->componentSCount;++i)
+    for(Count i=0;i<size(array);++i)
     {
       Count c=classId.get(classN,minimum,maximum,array[i]);
       if(c>=0&&c<classN&&array[i]>=minimum&&array[i]<=maximum)
@@ -249,7 +302,7 @@ public:
       Array <Count>& classesSFillId=classesSSize; //reuse memory
         classesSFillId=0;
 
-      for(Count i=0;i<array.pData->componentSCount;++i)
+      for(Count i=0;i<size(array);++i)
       {
         Count c=classId.get(classN,minimum,maximum,array[i]);
         if(c>=0&&c<classN&&array[i]>=minimum&&array[i]<=maximum)
@@ -302,7 +355,7 @@ public:
   template<class ComponentSType> static Array<Count> quickSortIndexArray(Array< ComponentSType >& array,Count componentIdMinimal=0,Count componentIdMaximal=0)
   {
     if(componentIdMaximal==0)
-      componentIdMaximal=array.pData->componentSCount-1;
+      componentIdMaximal=size(array)-1;
     if(componentIdMinimal>=componentIdMaximal)
     {
       Array<Count> indexArrayEmpty;
@@ -325,8 +378,8 @@ public:
   using Array<ComponentSType>::Array;
   template<class K>MathematicaArray(Array<K> a)
   {
-    this->resize(a.size());
-    for(Count i=0;i<a.size();++i)
+    this->resize(size(a));
+    for(Count i=0;i<size(a);++i)
       this->operator[](i)=a[i];  //this->operator=(a); // results in recursive construction.
   }
 };
