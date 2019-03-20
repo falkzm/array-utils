@@ -1,97 +1,103 @@
 #pragma once
 #include<tuple>
 
-template<class Tt,class Ts> struct copy_referenceType //similar to forward, can also handle non-reference types
+
+namespace ArrayTools
 {
-  template<class=typename std::enable_if< std::is_reference<Ts>::value>::type > static typename remove_reference<Tt>::type &&  helper(typename remove_reference<Ts>::type &&);
-  template<class=typename std::enable_if< std::is_reference<Ts>::value>::type > static typename remove_reference<Tt>::type  &  helper(typename remove_reference<Ts>::type & );
-  template<class=typename std::enable_if<!std::is_reference<Ts>::value>::type > static typename remove_reference<Tt>::type     helper(                          Ts          );
-  //typename remove_reference<Tt>::type     helper(typename remove_reference<Ts>::type   );
-
-  typedef decltype(helper(std::declval<Ts>())) type;
-};
+  template<class SubSettable,class Scalar=fundamental_t<SubSettable>> inline static constexpr Count rank=Array<bool>::rank<SubSettable,Scalar>;
 
 
-template<class  ,class=void> struct has_atFast                                                             : std::false_type {  };
-template<class T>            struct has_atFast<T,std::void_t<decltype(std::declval<T>().atFast(Count{}))>> : std::true_type  {  };
-
-template<class T> inline static constexpr bool has_atFast_v = has_atFast<T>::value;
-
-
-//template<class  ,class... P, class=void> struct has_n                                                                          : std::false_type {  };
-//template<class T,class... P>             struct has_n<T,P...,std::void_t<decltype(std::declval<T>().n(std::declval<P>()...))>> : std::true_type  {  };
-
-//template<class T,class... P> inline static constexpr bool has_n_v = has_n<T,P...>::value;
-
-
-template<class SubSettable,class Index>                                                        inline auto&& at    (SubSettable&& s,Index&& i)
-{  return std::forward<SubSettable>(s)[std::forward<Index>(i)];  }
-template<class SubSettable,class Index>                                                        inline auto&& atFast(SubSettable&& s,Index&& i)
-{
-  if constexpr(has_atFast_v<SubSettable>)
-    return std::forward<SubSettable>(s).atFast(std::forward<Index>(i));
-  else
-    return std::forward<SubSettable>(s)[std::forward<Index>(i)];
-}
-
-
-using std::size;
-template<class Array,class Size> auto&& resize(Array &&a,Size &&size,bool keepComponents=false)
-{
-  if constexpr(inheritsArray_v<Array>)
-    return std::forward<Array>(a).resize(std::forward<Size>(size),keepComponents);
-  else
-    return std::forward<Array>(a).resize(std::forward<Size>(size));
-}
-
-template<class... P,class Array>            auto&& n(Array&& a)
-{
-  //if constexpr(has_n_v<Array>)
-    return std::forward<Array>(a).template n<P...>();
-  //else
-  //  return Count(1);
-}
-template<class... P,class Array,class Size> auto&& n(Array&& a,Size&& size, bool keepComponents=false)
-{
-  return std::forward<Array>(a).template n<P...>(std::forward<Size>(size),keepComponents);
-}
-
-
-class ArrayTools
-{
-protected:
-
-  template<class ComponentSType> struct SubArraySArrayLoop
+  template<class Tt,class Ts> struct copy_referenceType //similar to forward, can also handle non-reference types
   {
-    Array < ComponentSType > result;
-    const Count& dimensionIdRemoveSIndex;
+    template<class=typename std::enable_if< std::is_reference<Ts>::value>::type > static typename remove_reference<Tt>::type &&  helper(typename remove_reference<Ts>::type &&);
+    template<class=typename std::enable_if< std::is_reference<Ts>::value>::type > static typename remove_reference<Tt>::type  &  helper(typename remove_reference<Ts>::type & );
+    template<class=typename std::enable_if<!std::is_reference<Ts>::value>::type > static typename remove_reference<Tt>::type     helper(                          Ts          );
+    //typename remove_reference<Tt>::type     helper(typename remove_reference<Ts>::type   );
 
-    template<class ScalarType>void process(const Array< ScalarType > & array __attribute__ ((unused)),double result __attribute__ ((unused)),const Count dimensionIdRemaining __attribute__ ((unused)))
-    {  }//template recursion anchor
-
-    template<class SubComponentSType>void process(const Array< Array< SubComponentSType > >& array,Array< SubComponentSType >& result,const Count dimensionIdRemaining)
-    {
-      result.resize(size(array));
-      if(dimensionIdRemaining==1)
-      {
-        for(Count i=0;i<size(array);++i)
-          atFast(result,i)=array[i][dimensionIdRemoveSIndex];
-      }
-      else
-        for(Count i=0;i<size(array);++i)
-          process(array[i],atFast(result,i),dimensionIdRemaining-1);
-    }
-
-
-    SubArraySArrayLoop(const Array< Array<ComponentSType> >& array,const int& dimensionIdRemove,const Count& i)
-      :dimensionIdRemoveSIndex(i)
-    {
-      process (array,result,dimensionIdRemove);
-    }
+    typedef decltype(helper(std::declval<Ts>())) type;
   };
 
-public:
-  template<class SubSettable,class Scalar=fundamental_t<SubSettable>> inline static constexpr Count rank=Array<bool>::rank<SubSettable,Scalar>;
+
+  template<class  ,class=void> struct has_atFast                                                             : std::false_type {  };
+  template<class T>            struct has_atFast<T,std::void_t<decltype(std::declval<T>().atFast(Count{}))>> : std::true_type  {  };
+
+  template<class T> inline static constexpr bool has_atFast_v = has_atFast<T>::value;
+
+  //template<class  ,class... P, class=void> struct has_n                                                                          : std::false_type {  };
+  //template<class T,class... P>             struct has_n<T,P...,std::void_t<decltype(std::declval<T>().n(std::declval<P>()...))>> : std::true_type  {  };
+
+  //template<class T,class... P> inline static constexpr bool has_n_v = has_n<T,P...>::value;
+
+
+  template<class SubSettable,class Index>                                                        inline auto&& at    (SubSettable&& s,Index&& i)
+  {  return std::forward<SubSettable>(s)[std::forward<Index>(i)];  }
+  template<class SubSettable,class Index>                                                        inline auto&& atFast(SubSettable&& s,Index&& i)
+  {
+    if constexpr(has_atFast_v<SubSettable>)
+      return std::forward<SubSettable>(s).atFast(std::forward<Index>(i));
+    else
+      return std::forward<SubSettable>(s)[std::forward<Index>(i)];
+  }
+
+
+  using std::size;
+  template<class Array,class Size> auto&& resize(Array &&a,Size &&size,bool keepComponents=false)
+  {
+    if constexpr(inheritsArray_v<Array>)
+      return std::forward<Array>(a).resize(std::forward<Size>(size),keepComponents);
+    else
+      return std::forward<Array>(a).resize(std::forward<Size>(size));
+  }
+
+  template<class... P,class Array>            auto&& n(Array&& a)
+  {
+    //if constexpr(has_n_v<Array>)
+      return std::forward<Array>(a).template n<P...>();
+    //else
+    //  return Count(1);
+  }
+  template<class... P,class Array,class Size> auto&& n(Array&& a,Size&& size, bool keepComponents=false)
+  {
+    return std::forward<Array>(a).template n<P...>(std::forward<Size>(size),keepComponents);
+  }
+
+
+
+  namespace // internals
+  {
+
+    template<class ComponentSType> struct SubArraySArrayLoop
+    {
+      Array < ComponentSType > result;
+      const Count& dimensionIdRemoveSIndex;
+
+      template<class ScalarType>void process(const Array< ScalarType > & array __attribute__ ((unused)),double result __attribute__ ((unused)),const Count dimensionIdRemaining __attribute__ ((unused)))
+      {  }//template recursion anchor
+
+      template<class SubComponentSType>void process(const Array< Array< SubComponentSType > >& array,Array< SubComponentSType >& result,const Count dimensionIdRemaining)
+      {
+        result.resize(size(array));
+        if(dimensionIdRemaining==1)
+        {
+          for(Count i=0;i<size(array);++i)
+            atFast(result,i)=array[i][dimensionIdRemoveSIndex];
+        }
+        else
+          for(Count i=0;i<size(array);++i)
+            process(array[i],atFast(result,i),dimensionIdRemaining-1);
+      }
+
+
+      SubArraySArrayLoop(const Array< Array<ComponentSType> >& array,const int& dimensionIdRemove,const Count& i)
+        :dimensionIdRemoveSIndex(i)
+      {
+        process (array,result,dimensionIdRemove);
+      }
+    };
+
+  }
+
+
 
   template<class Invocable> struct get_args
   {
@@ -171,7 +177,7 @@ public:
 
 
   template<class Array, class Invocable, class... Parameter>
-     inline static decltype(auto)
+     inline decltype(auto)
        map (Array &&array,Invocable &&invocable,Parameter &&... parameter)
   // The invocable should have the following signature void (ComponentSType&(&), IntegralType OR Subsettable Integraltype, Parameter...)
   //   whereas Array is resolved into Elements recursively until its ComponentSType equals ComponentSType from Invocable up to cv qualification
@@ -194,7 +200,7 @@ public:
   }
 
   template<class Array, class Invocable, std::enable_if_t< std::tuple_size<get_args_t<Invocable>>::value==1 >* =nullptr >
-    inline static decltype(auto)
+    inline decltype(auto)
       map (Array &&array,Invocable &&func)
   //Invocables w only one parameter have a different calling signature than Lambda(F,Integral,Parameters...), that is used in the more general "map" above.a
   //  For these simple Invocables, this wrapper of "map" can be invoked directly:
@@ -213,7 +219,7 @@ public:
   }
 
 
-  template<class ComponentSType> static Array < ComponentSType > subArray(const Array < Array < ComponentSType > > array,const int  dimensionIdRemove,const Count i)
+  template<class ComponentSType> Array < ComponentSType > subArray(const Array < Array < ComponentSType > > array,const int  dimensionIdRemove,const Count i)
   {
     if(dimensionIdRemove==0)
       return array[i];
@@ -223,7 +229,7 @@ public:
   }
 
 
-  template<class ComponentSType> static Array < ComponentSType > interval(const Array < ComponentSType > array,Count min,Count max)
+  template<class ComponentSType> Array < ComponentSType > interval(const Array < ComponentSType > array,Count min,Count max)
   {
     if(min<0)  min=0;  if(max>=size(array))  max=size(array)-1;
     Array < ComponentSType > result(max-min+1,NULL);
@@ -235,7 +241,7 @@ public:
   }
 
 
-  template<bool maximum,bool returnIndex=false, class ScalarUser=void,class SubSettable,class Scalar=remove_cr_t<first_nonVoid_t<ScalarUser,decltype(std::declval<SubSettable>()[0])>>> static decltype(auto) extremum(SubSettable &&array)
+  template<bool maximum,bool returnIndex=false, class ScalarUser=void,class SubSettable,class Scalar=remove_cr_t<first_nonVoid_t<ScalarUser,decltype(std::declval<SubSettable>()[0])>>>  decltype(auto) extremum(SubSettable &&array)
   {
     typedef std::array<Count,rank<SubSettable,Scalar>> I;
     I r{0};
@@ -253,7 +259,7 @@ public:
       return forwardMember<SubSettable>(array.template at<Scalar>(r));
   }
 
-  template<class ComponentSType> static Count maximalComponentId(const Array< ComponentSType > array) //simple but fast.
+  template<class ComponentSType>  Count maximalComponentId(const Array< ComponentSType > array) //simple but fast.
   {
     Count result=0;
     for(Count i=1;i<size(array);++i)
@@ -263,7 +269,7 @@ public:
     return result;
   }
 
-  template<class ComponentSType> static Count minimalComponentId(const Array< ComponentSType > array)
+  template<class ComponentSType>  Count minimalComponentId(const Array< ComponentSType > array)
   {
     Count result=0;
     for(Count i=1;i<size(array);++i)
@@ -273,13 +279,13 @@ public:
     return result;
   }
 
-  template<class ScalarUser=void,class K> static decltype(auto) max(K &&array)
+  template<class ScalarUser=void,class K>  decltype(auto) max(K &&array)
   {  if constexpr (!is_subsettable_v<K>) return array; else return extremum<true ,false,ScalarUser>(std::forward<K>(array));  }
-  template<class ScalarUser=void,class K> static decltype(auto) min(K &&array)
+  template<class ScalarUser=void,class K>  decltype(auto) min(K &&array)
   {  if constexpr (!is_subsettable_v<K>) return array; else return extremum<false,false,ScalarUser>(std::forward<K>(array));  }
 
 
-  template<class ComponentSType> static Array< Array <Count> > histogramClassesSIndexArray(const Array< ComponentSType >& array, Count classN, ComponentSType minimum, ComponentSType maximum)
+  template<class ComponentSType>  Array< Array <Count> > histogramClassesSIndexArray(const Array< ComponentSType >& array, Count classN, ComponentSType minimum, ComponentSType maximum)
   {
     Array< Array <Count> > classesSIndexArray(classN,NULL);
     Array <Count> classesSSize(classN,0,NULL);
@@ -317,7 +323,7 @@ public:
   }
 
 
-  template<class ComponentSType> static void quickSortIndexArray(const Array< ComponentSType >& array,Array< Count >& indexArray,Count componentIdMinimal,Count componentIdMaximal)
+  template<class ComponentSType>  void quickSortIndexArray(const Array< ComponentSType >& array,Array< Count >& indexArray,Count componentIdMinimal,Count componentIdMaximal)
   {
     std::cout<<"ERROR: template<class ComponentSType> static void quickSortIndexArray(const Array< ComponentSType >& array,Array< Count >& indexArray,Count componentIdMinimal,Count componentIdMaximal) contains a bug in the recursive calls.  -- limits? See. Cf. wikipedia -> quicksort\n";
     ComponentSType pivot   (array[indexArray[componentIdMaximal]]);
@@ -352,7 +358,7 @@ public:
     if(leftId>0&&--leftId>componentIdMinimal)
       quickSortIndexArray(array,indexArray,componentIdMinimal,leftId-1);
   }
-  template<class ComponentSType> static Array<Count> quickSortIndexArray(Array< ComponentSType >& array,Count componentIdMinimal=0,Count componentIdMaximal=0)
+  template<class ComponentSType>  Array<Count> quickSortIndexArray(Array< ComponentSType >& array,Count componentIdMinimal=0,Count componentIdMaximal=0)
   {
     if(componentIdMaximal==0)
       componentIdMaximal=size(array)-1;
@@ -369,7 +375,7 @@ public:
 
     return indexArray;
   }
-};
+}
 
 
 template<class ComponentSType> class MathematicaArray: public Array<ComponentSType>

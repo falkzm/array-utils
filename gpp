@@ -48,6 +48,8 @@ using namespace std;
 #define N pData->componentSCount
 
 #define readMatrix(file) LAF::readMatrixFromFile<double>(file)
+
+using namespace AT;
 EOF
 
 
