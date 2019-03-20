@@ -56,7 +56,7 @@ echo -e $cppFruitInit";"                                                        
 echo -e "cout<<"$cppFruit";"                                                               >>$cppFile
 echo -e "return 0;\n}"                                                                     >>$cppFile
 
-g++ -std=c++17 -fconcepts -Wattributes $cppFile -o $binFile $cppFlags && $binFile
+g++ -std=c++2a -fconcepts -Wno-attributes $cppFile -o $binFile $cppFlags && $binFile
 
 
 # rm $cppFile

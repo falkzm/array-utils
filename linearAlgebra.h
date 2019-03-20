@@ -446,7 +446,7 @@ namespace LinearAlgebra // Matrix opr-func for Array are OK, but there should be
         if((jBest+kBest)%2) det=-det;
       }
       else
-        if(abs(m_i.atF(i))<eps)  // too small diagonal element -> search for one closer to 1 and swap rows.
+        if(abs(m_i.atF(i))<eps) [[unlikely]] // too small diagonal element -> search for one closer to 1 and swap rows.
         {
           Count jBest=i; K vBest=abs(1-abs(m_i.atF(i)));
           for(Count j=i+1; j<n; ++j)
