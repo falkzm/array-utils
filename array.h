@@ -584,6 +584,7 @@ public:
   {
     //cout<<"derefer; ";
     __ARRAY_DEBUG__print__("Array::derefer with useCount="<<( pData==NULL ? -1 : pData->useCount ));
+    __ARRAY_DEBUG__assert__(pData==NULL,"ERROR: Array::derefer() but pData==0");
 
     if(pData->useCount>1)
       resize(pData->componentSCount,true);// legt eigenen Speicher an und kopiert Inhalt
@@ -817,14 +818,17 @@ public:
     return *this;
   }
 
-  template<class ArrayT, class=typename enable_if< inheritsArray<ArrayT>::value&&!std::is_same<Array,ArrayT>::value >::type>inline Array& operator=(ArrayT &&array) noexcept
+  template<class ArrayT, class=typename enable_if< inheritsArray<ArrayT>::value&&!std::is_same<Array,remove_cr_t<ArrayT>>::value >::type>inline Array& operator=(ArrayT &&array) noexcept
   {
     __ARRAY_DEBUG__print__("lineareAlgebraSBloedeKommentare_2b");
 
     if(size()!=array.size())//provides compatibility with built-in types in the case of  Array<T> x; x=t; with t in T; T could be double etc
       resize(array.size());
     else
-      derefer();
+      if(pData!=NULL)
+        derefer();
+      else
+        return *this;
 
     for(Count i=0;i<pData->componentSCount;++i)
       pData->pComponents[i]=std::as_const(array)[i];

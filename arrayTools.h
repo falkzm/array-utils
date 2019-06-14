@@ -20,8 +20,10 @@ namespace ArrayTools
 
   template<class  ,class=void> struct has_atFast                                                             : std::false_type {  };
   template<class T>            struct has_atFast<T,std::void_t<decltype(std::declval<T>().atFast(Count{}))>> : std::true_type  {  };
-
   template<class T> inline static constexpr bool has_atFast_v = has_atFast<T>::value;
+  template<class  ,class=void> struct has_at                                                                 : std::false_type {  };
+  template<class T>            struct has_at    <T,std::void_t<decltype(std::declval<T>().at    (Count{}))>> : std::true_type  {  };
+  template<class T> inline static constexpr bool has_at_v     = has_atFast<T>::value;
 
   //template<class  ,class... P, class=void> struct has_n                                                                          : std::false_type {  };
   //template<class T,class... P>             struct has_n<T,P...,std::void_t<decltype(std::declval<T>().n(std::declval<P>()...))>> : std::true_type  {  };
@@ -29,24 +31,33 @@ namespace ArrayTools
   //template<class T,class... P> inline static constexpr bool has_n_v = has_n<T,P...>::value;
 
 
-  template<class SubSettable,class Index>                                                        inline auto&& at    (SubSettable&& s,Index&& i)
-  {  return std::forward<SubSettable>(s)[std::forward<Index>(i)];  }
-  template<class SubSettable,class Index>                                                        inline auto&& atFast(SubSettable&& s,Index&& i)
+  template<class ScalarUser=void,class SubSettable,class Index>                                                        inline auto&& at    (SubSettable&& s,Index&& i)
+  {
+    if constexpr(inheritsArray_v<SubSettable>)
+      return std::forward<SubSettable>(s).template at<ScalarUser>(std::forward<Index>(i));
+    else
+      return std::forward<SubSettable>(s)[std::forward<Index>(i)];
+  }
+  template<class ScalarUser=void,class SubSettable,class Index>                                                        inline auto&& atFast(SubSettable&& s,Index&& i)
   {
     if constexpr(has_atFast_v<SubSettable>)
-      return std::forward<SubSettable>(s).atFast(std::forward<Index>(i));
+      if constexpr(inheritsArray_v<SubSettable>)
+        return std::forward<SubSettable>(s).template atFast<ScalarUser>(std::forward<Index>(i));
+      else
+        return std::forward<SubSettable>(s).         atFast            (std::forward<Index>(i));
     else
       return std::forward<SubSettable>(s)[std::forward<Index>(i)];
   }
 
 
   using std::size;
-  template<class Array,class Size> auto&& resize(Array &&a,Size &&size,bool keepComponents=false)
+  template<class Array,class Size> inline auto&& resize(Array &&a,Size &&size,bool keepComponents=false)
   {
     if constexpr(inheritsArray_v<Array>)
-      return std::forward<Array>(a).resize(std::forward<Size>(size),keepComponents);
+      a.resize(std::forward<Size>(size),keepComponents);
     else
-      return std::forward<Array>(a).resize(std::forward<Size>(size));
+      a.resize(std::forward<Size>(size));
+    return std::forward<Array>(a);
   }
 
   template<class... P,class Array>            auto&& n(Array&& a)
@@ -56,7 +67,7 @@ namespace ArrayTools
     //else
     //  return Count(1);
   }
-  template<class... P,class Array,class Size> auto&& n(Array&& a,Size&& size, bool keepComponents=false)
+  template<class... P,class Array,class Size> inline auto&& n(Array&& a,Size&& size, bool keepComponents=false)
   {
     return std::forward<Array>(a).template n<P...>(std::forward<Size>(size),keepComponents);
   }
@@ -154,12 +165,12 @@ namespace ArrayTools
                           std::remove_cv_t< std::remove_reference_t<decltype(array[0])> >,
                           Scalar
                         >::value )
-            map< d+1, PI... >(atFast(array,i));
+            map< d+1, PI... >(atFast(std::forward<ArrayL>(array),i));
           else
             if constexpr( subsettableIndex )
-              invocable( atFast(array,i),indexContainer.v, get<PI> (parameter)... );
+              invocable( atFast(std::forward<ArrayL>(array),i), indexContainer.v, get<PI> (parameter)... );
             else
-              invocable( atFast(array,i),i               , get<PI> (parameter)... );
+              invocable( atFast(std::forward<ArrayL>(array),i), i               , get<PI> (parameter)... );
       }
       //return std::forward<Array>(array);
     }
@@ -188,10 +199,10 @@ namespace ArrayTools
   //
   // We deal with the constness problem of the indexing operator by the use of atFast(.) and initial call of "array[0];" ( which might perform data copies ("derefer()") for lazy-copy container types or gets optimised away, otherwise.)
   {
-    if constexpr(!inheritsArray<Array>::value)
+    if constexpr( !inheritsArray<Array>::value || std::is_same< remove_cr_t<Array>, typename Map< Array, Invocable, Parameter... >::Scalar >::value )
     {
        typename Map< Array, Invocable, Parameter... >::Index i {0};
-       invocable(array,i,parameter...);
+       invocable(std::forward<Array>(array),i,parameter...);
     }
     else
       Map< Array, Invocable, Parameter... > map(std::forward<Array>(array),std::forward<Invocable>(invocable),std::forward<Parameter>(parameter)...);
@@ -241,6 +252,146 @@ namespace ArrayTools
   }
 
 
+/*  template<class ScalarUser=void,bool local=true,bool boundaryCheck=false,Count d=0,template<class...> class ArrayT,class... ComponentSType, class Scalar=remove_cr_t<first_nonVoid_t<ScalarUser,decltype(std::declval<ArrayT<ComponentSType...>>()[0])>>>
+    decltype(auto) blockify(ArrayT<ComponentSType...> array, const Array<Count> m)  // transforms a tensor into a double rank tensor by introducing blocks of length m
+                                                                                    // m is a scalar or vector of block length.
+  {
+    if constexpr(is_same_v<Scalar,remove_cr_t<ArrayT<ComponentSType...>>>)
+      return std::forward<ArrayT<ComponentSType...>>(array);
+    else
+    {
+      Count b=m[min(d,m.n()-1)];
+      nested_t<2*rank<ArrayT<ComponentSType...>,Scalar>,ArrayT,Scalar> r;  // remove_cr_t<decltype(blockify<Scalar>(array[0],0))> r;
+        resize(r,size(array)/b);
+
+      for(Count i=size(r);i-->0;)
+      {
+        auto &&r_i=atFast(r,i);
+        resize(r_i,b);
+        for(Count j=( !boundaryCheck ? b : min(b,size(array)-i*b) );j-->0;)
+          if constexpr(is_same_v<remove_cr_t<decltype(array[0])>,Scalar>)
+            atFast(r_i,j)=atFast(array,i*b+j);
+          else
+            atFast(r_i,j)=blockify<Scalar,boundaryCheck,d+1>(atFast(array,i*b+j),m);
+      }
+      if constexpr( local&&!is_same_v<remove_cr_t<decltype(array[0])>,Scalar> ) //resort st. that slices from dim d-1 are rearanged (blockwise) wrt to their proximity in dim d:
+      {                                                                         //the first step is still
+        decltype(r) r_(r.n(),NULL);
+          for(Count i)
+//could in principle be done simpler by passing a size array - however this would remove compatibility w std::vector and the resize([Array<>]) is more
+
+      }
+
+      return r;
+    }
+  }
+  template<class ScalarUser=void,bool boundaryCheck=false,class ArrayT, class Scalar=remove_cr_t<first_nonVoid_t<ScalarUser,ArrayT>>, class Index=Count, std::enable_if_t< !is_subsettable_v<ArrayT> >* =nullptr>
+    decltype(auto) blockify(ArrayT array, Count=0)
+  {
+    if constexpr(is_same_v<Scalar,ArrayT>) // catches wrong scalar specifications
+      return std::forward<ArrayT>(array);
+  }*/
+  template<class ScalarUser=void,template<class...> class ArrayT,class... ComponentSType, class Scalar=remove_cr_t<first_nonVoid_t<ScalarUser,decltype(std::declval<ArrayT<ComponentSType...>>()[0])>>,Count rank=rank<ArrayT<ComponentSType...>,Scalar> >
+    decltype(auto) blockify(ArrayT<ComponentSType...> array, const Array<Count> m)  // transforms a tensor into a double rank tensor by introducing blocks of length m
+                                                                                    // m is a scalar or vector of block length.
+  {
+    if constexpr(!rank)
+      return std::forward<ArrayT<ComponentSType...>>(array);
+    else
+    {
+      Array<Count> size=array.template getSize<Scalar>();
+      size.n(rank*2,true);
+      for ( Count d=rank;d-->0; )
+         {  size[rank+d]=m[d]; size[d]/=m[d];  }
+
+      nested_t<2*rank,ArrayT,Scalar> r;  // remove_cr_t<decltype(blockify<Scalar>(array[0],0))> r;
+        resize(r,size);
+
+      map(std::as_const(array), [&r,&m](const Scalar &e,std::array<Count,rank> &i)
+      {
+        Count blockIndices[rank],intraBlockIndices[rank];
+          for(Count d=rank;d-->0;)
+          {
+                 blockIndices[d]=i[d]/m[d];
+            intraBlockIndices[d]=i[d]%m[d];
+          }
+        atFast<Scalar>(atFast<ArrayT<ComponentSType...>>(r,blockIndices),intraBlockIndices) = e;
+      });
+
+      return r;
+    }
+  }
+  template<class ScalarUser=void,class ArrayT, class Scalar=remove_cr_t<first_nonVoid_t<ScalarUser,ArrayT>>, class Index=Count, std::enable_if_t< !is_subsettable_v<ArrayT> >* =nullptr>
+    decltype(auto) blockify(ArrayT array, Count=0)
+  {
+    if constexpr(is_same_v<Scalar,ArrayT>) // catches wrong scalar specifications
+      return std::forward<ArrayT>(array);
+  }
+
+  template<class ScalarUser=void,bool boundaryCheck=true,bool flatten=false,Count d=0,template<class...> class ArrayT, class... ComponentSType, class Scalar=remove_cr_t<first_nonVoid_t<ScalarUser,decltype(std::declval<ArrayT<ComponentSType...>>()[0][0])>>>
+    decltype(auto) deblockify(ArrayT<ComponentSType...> array,const Array<Count> m=0)
+  {
+    if constexpr(is_same_v<Scalar,remove_cr_t<ArrayT<ComponentSType...>>>)
+      return std::forward<ArrayT<ComponentSType...>>(array);
+    else
+    {
+      nested_t<rank<ArrayT<ComponentSType...>,Scalar>/2,ArrayT,Scalar> r;  // remove_cr_t<decltype(blockify<Scalar>(array[0],0))> r;
+
+      if constexpr (!flatten)
+      {
+        Count b=0;
+        if(m.n()<=d||m[d]==0)
+        {
+          for(Count i=size(array);i-->0;)
+            if(size(atFast(array,i))>b)
+              b=size(atFast(array,i));
+        }
+        else
+          b=m[d];
+          resize(r,size(array)*b);
+
+        for(Count i=size(array);i-->0;)
+        {
+          auto &&a_i=atFast(array,i);
+          for(Count j=( !boundaryCheck ? b : size(a_i) );j-->0;)
+            if constexpr(is_same_v<remove_cr_t<decltype(a_i[0])>,Scalar>)
+              atFast(r,i*b+j)=atFast(a_i,j);
+            else
+              atFast(r,i*b+j)=deblockify<Scalar,boundaryCheck,flatten,d+1>(atFast(a_i,j),m);
+        }
+      }
+      else
+      {
+        Count n=0;
+          for(Count i=size(array);i-->0;)
+            n+=size(atFast(array,i)); // if not just every 2nd dim should be eleminated, use AT::map to compute size
+          resize(r,n);
+
+        for(Count i=size(array);i-->0;)
+        {
+          auto &&a_i=atFast(array,i);
+          for(Count j=size(a_i);j-->0;)
+            if constexpr(is_same_v<remove_cr_t<decltype(a_i[0])>,Scalar>)
+              atFast(r,--n)=atFast(a_i,j);
+            else
+              atFast(r,--n)=deblockify<Scalar,boundaryCheck,flatten,d+1>(atFast(a_i,j));
+        }
+      }
+
+      return r;
+    }
+  }
+  template<class ScalarUser=void,bool boundaryCheck=true,bool flatten=false,class ArrayT, class Scalar=remove_cr_t<first_nonVoid_t<ScalarUser,ArrayT>>, std::enable_if_t< rank<ArrayT><2 >* =nullptr>
+    decltype(auto) deblockify(ArrayT&& array,Count=0)
+  {
+    if constexpr(is_same_v<Scalar,ArrayT>) // catches wrong scalar specifications
+      return std::forward<ArrayT>(array);
+  }
+
+  template<class ScalarUser=void,class ArrayT> decltype(auto) flatten(ArrayT&& array) // Reduces dimension of a tensor by unrolling subdimensions.
+  {  return deblockify<ScalarUser,false,true>(std::forward<ArrayT>(array));  }        // Note that the present version uses deblockify<...>(...) and hence unrolls just every 2nd dimension. For total subdimension elemination, a code-split seems to be a good idea.
+
+
   template<bool maximum,bool returnIndex=false, class ScalarUser=void,class SubSettable,class Scalar=remove_cr_t<first_nonVoid_t<ScalarUser,decltype(std::declval<SubSettable>()[0])>>>  decltype(auto) extremum(SubSettable &&array)
   {
     typedef std::array<Count,rank<SubSettable,Scalar>> I;
@@ -285,7 +436,7 @@ namespace ArrayTools
   {  if constexpr (!is_subsettable_v<K>) return array; else return extremum<false,false,ScalarUser>(std::forward<K>(array));  }
 
 
-  template<class ComponentSType>  Array< Array <Count> > histogramClassesSIndexArray(const Array< ComponentSType >& array, Count classN, ComponentSType minimum, ComponentSType maximum)
+  template<class ComponentSType>  Array< Array <Count> > histogramClassesSIndexArray(const Array< ComponentSType >& array, Count classN, ComponentSType minimum, ComponentSType maximum) //returns an array of classes whwereas each element is a vector of indices of the records that fall into the class
   {
     Array< Array <Count> > classesSIndexArray(classN,NULL);
     Array <Count> classesSSize(classN,0,NULL);
@@ -320,6 +471,15 @@ namespace ArrayTools
     }
 
     return classesSIndexArray;
+  }
+
+  template<class ComponentSType>  Array <Count> histogram(const Array< ComponentSType >& array, Count classN, ComponentSType minimum, ComponentSType maximum)
+  {
+    const Array<Array<Count>> hCsIA=histogramClassesSIndexArray(array,classN,minimum,maximum);
+    Array<Count> r(hCsIA.n(),NULL);
+      for_Array(r,c)
+        atFast(r,c)=hCsIA[c].n();
+    return r;
   }
 
 

@@ -13,10 +13,10 @@ template<class A,class B> using nonVoid_t       = typename first_nonVoid<A,B>::t
 
 
 // constexpr to forward an lvalue "member", considered to behave as a member of B base, as an rvalue if base is one and as lvalue otherwise...
-template <class B,class M,enable_if_t< is_reference_v<B>>* =nullptr> constexpr static M&  forwardMember(M &&member) noexcept //M &&member is universal reference but should be a lvalue in most cases
+template <class B,class M,enable_if_t< is_reference_v<B> && is_reference_v<M> >* =nullptr> constexpr static std::remove_reference_t<M>&  forwardMember(M &&member) noexcept //M &&member is universal reference but should be a lvalue in most cases
 {  return member;  }                                //due to std::remove_reference<B> && is not universal anymore, ie. its possible to distinguish beween & and &&
-template <class B,class M,enable_if_t<!is_reference_v<B>>* =nullptr> constexpr static M&& forwardMember(M &&member) noexcept //M &&member is universal reference but should be a lvalue in most cases
-{  return static_cast<M&&>(member);  }
+template <class B,class M,enable_if_t<!is_reference_v<B> >* =nullptr>                      constexpr static std::remove_reference_t<M>&& forwardMember(M &&member) noexcept //M &&member is universal reference but should be a lvalue in most cases
+{  return static_cast<std::remove_reference_t<M>&&>(member);  }
 
 
 
