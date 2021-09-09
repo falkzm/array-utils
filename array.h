@@ -158,7 +158,7 @@ unsigned lineareAlgebraSBloedeKommentare=0; //verbosity
 
 
 // macros.
-#define for_Array(array,index) for(Count index=0; index<array.size(); ++index)
+#define for_array(array,index) for(Count index=0; index<size(array); ++index)
 //suggestion: #define for_A for_Array
 
 // reservation for an for_each version for arrays: should provide numa-local parallelisation
@@ -325,7 +325,7 @@ public:
   template<class T> static auto getFundamentalType(      Array<T>&& array) -> decltype( getFundamentalType(array[0]) );
   template<class T> static auto getFundamentalType(const Array<T>&& array) -> decltype( getFundamentalType(array[0]) );
 
-                    static auto getFundamentalType(ComponentSType c=std::declval<ComponentSType>()) -> decltype( getFundamentalType(c) );
+                    static auto getFundamentalType(                      ) -> decltype( getFundamentalType(std::declval<ComponentSType>()) );
 
 
 
@@ -705,14 +705,17 @@ public:
     const Count n=size();
     if constexpr (periodic)
     {
-      derefer();
-      for(Count i=0; true;) // swap all elements of distance offset in a cyle. Cycle starting at i.
+      if(offset!=0)
       {
-        for(Count j=(i-offset+n)%n; j!=i ; j=(j-offset+n)%n) // swap elements until the cycle is completed <=> element i reached again.
-          std::swap(pData->pComponents[i],pData->pComponents[j]);
-        ++i;
-        if( n%offset==0 ? i==offset : offset%(n%offset)!=0||i==n%offset ) // o%(n%o)==0 <=> cyclic swaping of elements of distance o=offset happens in a cycle that does not cover all elements
-          break;
+        derefer();
+        for(Count i=0; true;) // swap all elements of distance offset in a cyle. Cycle starting at i.
+        {
+          for(Count j=(i-offset+n)%n; j!=i ; j=(j-offset+n)%n) // swap elements until the cycle is completed <=> element i reached again.
+            std::swap(pData->pComponents[i],pData->pComponents[j]);
+          ++i;
+          if( n%offset==0 ? i==offset : offset%(n%offset)!=0||i==n%offset ) // o%(n%o)==0 <=> cyclic swaping of elements of distance o=offset happens in a cycle that does not cover all elements
+            break;
+        }
       }
     }
     else

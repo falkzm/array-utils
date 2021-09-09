@@ -1,0 +1,75 @@
+#!/bin/bash
+
+if [ $# -lt 2 ] || [ $# -gt 5 ]; then
+  echo -e "usage: $0 fileName \"c++ output code\" [\"initial c++ code\"] [\"compiler flags\"] [includes]"
+  exit 42
+fi
+
+f=$1 #"$0$RANDOM"
+
+cppFruit=$2
+cppFruitInit=$3
+cppFlags=$4
+cppIncludes=$5
+cppFile="$f.cpp"
+binFile="$PWD/$f.out"
+#echo $binFile
+
+basedir=`dirname $0`
+cd $basedir
+
+
+
+echo -e "#include<iostream>\n#include<stdio.h>\n#include<cmath>\nusing namespace std;\n\n" > $cppFile
+
+cat >> $cppFile <<EOF
+#define DEBUG
+
+#include <time.h>
+#include <complex>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+//#incluse <string>
+#include <iomanip> //setw setfill for string formating
+//#include <stdio>
+#include <cmath>
+#include <numeric>
+#include <boost/type_traits.hpp>
+using namespace std;
+
+
+#include "Parameter.h"
+//#include "listTools.h"
+#include "array.h"
+#include "arrayTools.h"
+#include "fft.h"
+//#include "linearAlgebra.h"
+#include "linearAlgebraFile.h"
+#include "dataAnalysis.h"
+#include "autoCorrelation.h"
+$cppIncludes
+
+#define LA  LinearAlgebra 
+#define LAF LinearAlgebraFile
+#define AT  ArrayTools
+#define DA  DataAnalysis
+#define N pData->componentSCount
+
+#define readMatrix(file) LAF::readMatrixFromFile<double>(file)
+
+using namespace AT;
+EOF
+
+
+echo -e "int main(int argc, char **argv)\n{"                                               >>$cppFile
+echo -e $cppFruitInit";"                                                                   >>$cppFile
+echo -e "cout<<"$cppFruit";"                                                               >>$cppFile
+echo -e "return 0;\n}"                                                                     >>$cppFile
+
+result=`g++ -std=c++17 -fconcepts -Wno-attributes -march=native $cppFile -o $binFile $cppFlags`
+rm $cppFile
+
+
+#rm $binFile
+exit $result

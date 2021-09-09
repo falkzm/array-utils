@@ -496,7 +496,7 @@ public:
 
 
   template<class RUser=void, class F, keyClasses(K,R,RUser,F)> static R sum(const Array<F> a,Count componentIdMinimal=-1,Count componentIdMaximal=-1, K   key=0)
-  {  return componentsSum<R>(a,componentIdMinimal>0&&componentIdMaximal>0,componentIdMinimal,componentIdMaximal,key);  }
+  {  return componentsSum<R>(a,componentIdMinimal>=0&&componentIdMaximal>=0,componentIdMinimal,componentIdMaximal,key);  }
   template<class R>                                            static R sum(const R        a,Count componentIdMinimal=-1,Count componentIdMaximal=-1, int key=0)
   {  return a;  }
 
@@ -520,7 +520,7 @@ public:
   }
 
 
-  template<class F> static Array<F> autoCorr(const Array<F> a,bool periodic=false,bool normaliseViaSd=true)
+  template<class F> static Array<F> autoCorr(const Array<F> a,Array<F> *pSD=NULL,bool periodic=false,bool normaliseViaSd=true)
   {
     const Count n(a.n());
     Array<F> ac(n,0,NULL);
@@ -528,6 +528,19 @@ public:
     for(auto t=0;t<n;++t)
       for(auto i=0;i<(periodic ? n : n-t );++i)
         ac[t]+=a[i]*a[(i+t)%n]/F( periodic ? n : n-t );
+    if(pSD!=NULL)
+    {
+      Array<F> &sd=*pSD;
+        sd=Array<F>(n,0,NULL);
+
+      for(auto t=0;t<n;++t)
+        for(auto i=0;i<(periodic ? n : n-t );++i)
+          sd[t]+=pow((a[i]*a[(i+t)%n]-ac[t])/F( periodic ? n : n-t ),2);
+
+      sd=sqrt(std::move(sd));
+      if(normaliseViaSd)
+        sd/=ac[0];
+    }
 
     if(normaliseViaSd)
       return ac/=ac[0];
@@ -642,6 +655,15 @@ public:
   template<class F, class=enable_if_notInheritsArray_t<F>> static F sqrt(F f)
   {  return std::sqrt(f);  }
 
+  template<class F> static Array<F> pow(Array<F> a,auto p)
+  {
+    for(Count i=0;i<a.size();++i)
+      a[i]=pow(a[i],p);
+    return a;
+  }
+  template<class F, class=enable_if_notInheritsArray_t<F>> static F pow(F f,auto p)
+  {  return std::pow(f,p);  }
+
 
   template<class F=double> static F sd(const Array<F> a) // standard deviation for algebraic field F
                                                          //   F could be an Array<.>, too.
@@ -672,6 +694,16 @@ public:
         e += a[indexArray]*conj(a[indexArray]);
 
     return sqrt(e/(n-i0));
+  }
+
+
+  template<class T> static Count median(const Array<T> a)
+  {
+    T sumAll=DataAnalysis::sum(a),
+      sum_i =0;
+    Count i=0;
+    for(;i<=a.n()&&(sum_i+=a[i])<=sumAll/2; ++i);
+    return std::max(0,i-1);
   }
 
 };

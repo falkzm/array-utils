@@ -33,21 +33,28 @@ namespace ArrayTools
 
   template<class ScalarUser=void,class SubSettable,class Index>                                                        inline auto&& at    (SubSettable&& s,Index&& i)
   {
-    if constexpr(inheritsArray_v<SubSettable>)
-      return std::forward<SubSettable>(s).template at<ScalarUser>(std::forward<Index>(i));
+    if constexpr(std::is_same_v<remove_cr_t<ScalarUser>,remove_cr_t<SubSettable>>)
+      return std::forward<SubSettable>(s);
     else
-      return std::forward<SubSettable>(s)[std::forward<Index>(i)];
+      if constexpr(inheritsArray_v<SubSettable>)
+        return std::forward<SubSettable>(s).template at<ScalarUser>(std::forward<Index>(i));
+      else
+        return std::forward<SubSettable>(s)[std::forward<Index>(i)];
   }
   template<class ScalarUser=void,class SubSettable,class Index>                                                        inline auto&& atFast(SubSettable&& s,Index&& i)
   {
-    if constexpr(has_atFast_v<SubSettable>)
-      if constexpr(inheritsArray_v<SubSettable>)
-        return std::forward<SubSettable>(s).template atFast<ScalarUser>(std::forward<Index>(i));
-      else
-        return std::forward<SubSettable>(s).         atFast            (std::forward<Index>(i));
+    if constexpr(std::is_same_v<remove_cr_t<ScalarUser>,remove_cr_t<SubSettable>>)
+      return std::forward<SubSettable>(s);
     else
-      return std::forward<SubSettable>(s)[std::forward<Index>(i)];
+      if constexpr(has_atFast_v<SubSettable>)
+        if constexpr(inheritsArray_v<SubSettable>)
+          return std::forward<SubSettable>(s).template atFast<ScalarUser>(std::forward<Index>(i));
+        else
+          return std::forward<SubSettable>(s).         atFast            (std::forward<Index>(i));
+      else
+        return std::forward<SubSettable>(s)[std::forward<Index>(i)];
   }
+  #define atF atFast
 
 
   using std::size;
@@ -444,26 +451,24 @@ namespace ArrayTools
     struct
     {
       Count get(Count classN,ComponentSType& minimum, ComponentSType& maximum,ComponentSType value)
-      {	return Count(double(value-minimum)/double(maximum-minimum)*(double)(classN)); }
+      {	return std::min( classN-1, Count(double(value-minimum)/double(maximum-minimum)*(double)(classN)) ); } // -fastmath requires this test to be performed after classId compution, instead of faster check for value==maximum
     } classId;
 
     for(Count i=0;i<size(array);++i)
-    {
-      Count c=classId.get(classN,minimum,maximum,array[i]);
-      if(c>=0&&c<classN&&array[i]>=minimum&&array[i]<=maximum)
-	      classesSSize[c]++;
-    }
+      if(array[i]>=minimum&&array[i]<=maximum)
+        classesSSize[classId.get(classN,minimum,maximum,array[i])]++;
     for(Count c=0;c<classN;++c)
       classesSIndexArray[c].resize(classesSSize[c]);
+
     {
       Array <Count>& classesSFillId=classesSSize; //reuse memory
         classesSFillId=0;
 
       for(Count i=0;i<size(array);++i)
       {
-        Count c=classId.get(classN,minimum,maximum,array[i]);
-        if(c>=0&&c<classN&&array[i]>=minimum&&array[i]<=maximum)
+        if(array[i]>=minimum&&array[i]<=maximum)
         {
+          Count c=classId.get(classN,minimum,maximum,array[i]);
       	  classesSIndexArray[c][classesSFillId[c]]=i;
 	        ++classesSFillId[c];
         }
@@ -477,7 +482,7 @@ namespace ArrayTools
   {
     const Array<Array<Count>> hCsIA=histogramClassesSIndexArray(array,classN,minimum,maximum);
     Array<Count> r(hCsIA.n(),NULL);
-      for_Array(r,c)
+      for_array(r,c)
         atFast(r,c)=hCsIA[c].n();
     return r;
   }
@@ -486,16 +491,13 @@ namespace ArrayTools
   template<class ComponentSType>  void quickSortIndexArray(const Array< ComponentSType > array,Array< Count >& indexArray,Count componentIdMinimal,Count componentIdMaximal)
   {
     // std::cout<<"ERROR: template<class ComponentSType> static void quickSortIndexArray(const Array< ComponentSType >& array,Array< Count >& indexArray,Count componentIdMinimal,Count componentIdMaximal) contains a bug in the recursive calls.  -- limits? See. Cf. wikipedia -> quicksort\n";
-
     ComponentSType pivot  = array[indexArray[(componentIdMinimal+componentIdMaximal)/2]];
-    Count          leftId = componentIdMinimal;
-    Count          rightId= componentIdMaximal;
+    Count          leftId = componentIdMinimal,
+                   rightId= componentIdMaximal;
 
-    std::cout<<"A_1\n";
     while(true)
     {
-      std::cout<<"A_2 "<<leftId<<" "<<rightId<<"\n";
-      for( ;array[indexArray[leftId]]<pivot && leftId<rightId; ++leftId);
+      for( ;array[indexArray[leftId ]]<pivot && leftId<rightId; ++leftId);
       for( ;array[indexArray[rightId]]>pivot && rightId>leftId; --rightId);
 
       if(leftId<rightId) //swap ids
@@ -508,7 +510,6 @@ namespace ArrayTools
       --leftId;
     if( array[indexArray[rightId]] <= pivot )
       ++rightId;
-      //  std::swap( indexArray[leftId], indexArray[componentIdMaximal] ); // => now all elements on the left are smaller than pivot...
 
     if(leftId>componentIdMinimal)
       quickSortIndexArray(array,indexArray,componentIdMinimal,leftId);
@@ -529,6 +530,16 @@ namespace ArrayTools
 
     return indexArray;
   }
+  template<class ComponentSType>  Array<ComponentSType> sort(const Array< ComponentSType > array,Count componentIdMinimal=0,Count componentIdMaximal=0)
+  {
+    const Array<Count> indexArray=quickSortIndexArray(array,componentIdMinimal,componentIdMaximal);
+    Array< ComponentSType > result(size(indexArray),NULL);
+      for_array(indexArray,i)
+         atFast(result,i) = array[indexArray[i]];
+
+    return result;
+  }
+
 }
 
 
