@@ -483,50 +483,44 @@ namespace ArrayTools
   }
 
 
-  template<class ComponentSType>  void quickSortIndexArray(const Array< ComponentSType >& array,Array< Count >& indexArray,Count componentIdMinimal,Count componentIdMaximal)
+  template<class ComponentSType>  void quickSortIndexArray(const Array< ComponentSType > array,Array< Count >& indexArray,Count componentIdMinimal,Count componentIdMaximal)
   {
-    std::cout<<"ERROR: template<class ComponentSType> static void quickSortIndexArray(const Array< ComponentSType >& array,Array< Count >& indexArray,Count componentIdMinimal,Count componentIdMaximal) contains a bug in the recursive calls.  -- limits? See. Cf. wikipedia -> quicksort\n";
-    ComponentSType pivot   (array[indexArray[componentIdMaximal]]);
-    Count          leftId =componentIdMinimal;
-    Count          rightId=componentIdMaximal-1;
+    // std::cout<<"ERROR: template<class ComponentSType> static void quickSortIndexArray(const Array< ComponentSType >& array,Array< Count >& indexArray,Count componentIdMinimal,Count componentIdMaximal) contains a bug in the recursive calls.  -- limits? See. Cf. wikipedia -> quicksort\n";
+
+    ComponentSType pivot  = array[indexArray[(componentIdMinimal+componentIdMaximal)/2]];
+    Count          leftId = componentIdMinimal;
+    Count          rightId= componentIdMaximal;
 
     std::cout<<"A_1\n";
-    do
+    while(true)
     {
       std::cout<<"A_2 "<<leftId<<" "<<rightId<<"\n";
-      for( ;array[indexArray[leftId]]<=pivot && leftId<componentIdMaximal; ++leftId);
-      for( ;array[indexArray[rightId]]>=pivot && rightId>componentIdMinimal; --rightId);
+      for( ;array[indexArray[leftId]]<pivot && leftId<rightId; ++leftId);
+      for( ;array[indexArray[rightId]]>pivot && rightId>leftId; --rightId);
 
       if(leftId<rightId) //swap ids
-      {
-        Count tmpId=indexArray[leftId];
-        indexArray[leftId]=indexArray[rightId];
-        indexArray[rightId]=tmpId;
-      }
+        std::swap(indexArray[leftId++],indexArray[rightId--]);
+      else
+        break;
     }
-    while(leftId<rightId);
 
-    if( array[indexArray[leftId]] > pivot )
-    {
-      Count tmpId=indexArray[leftId];
-      indexArray[leftId]=indexArray[componentIdMaximal];
-      indexArray[componentIdMaximal]=tmpId;
-    }// => all elements on the left are smaller than pivot...
+    if( array[indexArray[leftId]] >= pivot )
+      --leftId;
+    if( array[indexArray[rightId]] <= pivot )
+      ++rightId;
+      //  std::swap( indexArray[leftId], indexArray[componentIdMaximal] ); // => now all elements on the left are smaller than pivot...
 
-    if(leftId<componentIdMaximal)
-      quickSortIndexArray(array,indexArray,leftId,componentIdMaximal); //Error here?
-    if(leftId>0&&--leftId>componentIdMinimal)
-      quickSortIndexArray(array,indexArray,componentIdMinimal,leftId-1);
+    if(leftId>componentIdMinimal)
+      quickSortIndexArray(array,indexArray,componentIdMinimal,leftId);
+    if(rightId<componentIdMaximal)
+      quickSortIndexArray(array,indexArray,rightId,componentIdMaximal); //Error here?
   }
-  template<class ComponentSType>  Array<Count> quickSortIndexArray(Array< ComponentSType >& array,Count componentIdMinimal=0,Count componentIdMaximal=0)
+  template<class ComponentSType>  Array<Count> quickSortIndexArray(const Array< ComponentSType > array,Count componentIdMinimal=0,Count componentIdMaximal=0)
   {
     if(componentIdMaximal==0)
       componentIdMaximal=size(array)-1;
     if(componentIdMinimal>=componentIdMaximal)
-    {
-      Array<Count> indexArrayEmpty;
-      return indexArrayEmpty;
-    }
+      return Array<Count>();
     Array<Count> indexArray(componentIdMaximal-componentIdMinimal+1,NULL);
     for(Count i=componentIdMinimal;i<=componentIdMaximal;++i)
       indexArray[i]=i;

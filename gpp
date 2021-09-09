@@ -5,11 +5,13 @@ if [ $# -lt 1 ] || [ $# -gt 3 ]; then
   exit 42
 fi
 
+f="$0$RANDOM"
+
 cppFruit=$1
 cppFruitInit=$2
 cppFlags=$3
-cppFile=$0".cpp"
-binFile=$0".out"
+cppFile=$f".cpp"
+binFile=$f".out"
 
 
 
@@ -61,6 +63,6 @@ echo -e "return 0;\n}"                                                          
 g++ -std=c++2a -fconcepts -Wno-attributes $cppFile -o $binFile $cppFlags && $binFile
 
 
-# rm $cppFile
+rm $cppFile
 rm $binFile
 exit 0
